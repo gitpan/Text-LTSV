@@ -1,5 +1,5 @@
 ---
-abstract: 'Labeled Tab Separeted Value manipulator'
+abstract: 'Labeled Tab Separated Value manipulator'
 author:
   - 'Naoya Ito <i.naoya@gmail.com>'
 build_requires:
@@ -21,8 +21,11 @@ no_index:
     - t
     - xt
 requires:
+  Project::Libs: 0
   Tie::IxHash: 0
+  UNIVERSAL::require: 0
+  YAML::Tiny::Color: 0
 resources:
   license: http://dev.perl.org/licenses/
   repository: git://github.com/naoya/perl-Text-LTSV.git
-version: 0.03
+version: 0.04
