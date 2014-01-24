@@ -2,11 +2,12 @@ package Text::LTSV;
 use strict;
 use warnings;
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 use IO::File;
 use Carp qw/croak/;
 use Text::LTSV::Iterator;
+use Scalar::Util;
 
 sub new {
     my ($self, @kv) = @_;
@@ -44,8 +45,8 @@ sub has_ignores {
 sub parse_line {
     my ($self, $line) = @_;
     chomp $line;
-    my $has_wants   = $self->has_wants;
-    my $has_ignores = $self->has_ignores;
+    my $has_wants   = ref $self ? $self->has_wants : undef;
+    my $has_ignores = ref $self ? $self->has_ignores : undef;
 
     my %wants;
     if ($has_wants) {
@@ -58,7 +59,7 @@ sub parse_line {
     }
 
     my %kv;
-    if ($self->ordered) {
+    if (ref $self and $self->ordered) {
         require Tie::IxHash;
         tie %kv, 'Tie::IxHash';
     }
@@ -71,9 +72,9 @@ sub parse_line {
 }
 
 sub parse_file {
-    my ($self, $path, $opt) = @_;
-    $opt ||= {};
-    my $fh = IO::File->new($path, $opt->{utf8} ? '<:utf8' : 'r') or croak $!;
+    my ($self, $file, $opt) = @_;
+    $self = $self->new unless ref $self;
+    my $fh = $self->_open($file, $opt);
     my @out;
     while (my $line = $fh->getline) {
         push @out, $self->parse_line($line);
@@ -83,20 +84,20 @@ sub parse_file {
 }
 
 sub parse_file_utf8 {
-    my ($self, $path) = @_;
-    return $self->parse_file($path, { utf8 => 1 });
+    my ($self, $file) = @_;
+    return $self->parse_file($file, { utf8 => 1 });
 }
 
 sub parse_file_iter {
-    my ($self, $path, $opt) = @_;
-    $opt ||= {};
-    my $fh = IO::File->new($path, $opt->{utf8} ? '<:utf8' : 'r') or croak $!;
+    my ($self, $file, $opt) = @_;
+    $self = $self->new unless ref $self;
+    my $fh = $self->_open($file, $opt);
     return Text::LTSV::Iterator->new($self, $fh);
 }
 
 sub parse_file_iter_utf8 {
-    my ($self, $path) = @_;
-    return $self->parse_file_iter($path, { utf8 => 1 });
+    my ($self, $file) = @_;
+    return $self->parse_file_iter($file, { utf8 => 1 });
 }
 
 sub to_s {
@@ -110,6 +111,21 @@ sub to_s {
     return join "\t", @out;
 }
 
+sub _open {
+    my ($self, $file, $opt) = @_;
+
+    $opt ||= {};
+    if (Scalar::Util::openhandle($file)) {
+        open my $fh, '<&', $file;
+        if ($opt->{utf8}) {
+            binmode $fh, ':raw';
+            binmode $fh, ':encoding(utf-8)';
+        }
+
+        return $fh;
+    }
+    return IO::File->new($file, $opt->{utf8} ? '<:utf8' : 'r') or croak $!;
+}
 
 1;
 __END__
